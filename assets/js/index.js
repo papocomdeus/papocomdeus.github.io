@@ -1,98 +1,134 @@
-/**
- * Main JS file for Casper behaviours
- */
+jQuery(function($) {
 
-/* globals jQuery, document */
-(function ($, sr, undefined) {
-    "use strict";
+	var body = $('body');
+	var viewport = $(window);
 
-    var $document = $(document),
+	/* ==========================================================================
+	   Menu
+	   ========================================================================== */
 
-        // debouncing function from John Hann
-        // http://unscriptable.com/index.php/2009/03/20/debouncing-javascript-methods/
-        debounce = function (func, threshold, execAsap) {
-            var timeout;
+	function menu() {
+		body.toggleClass('menu-active');
+	};
+	
+	$('#menu').on({
+		'click': function() {
+			menu();
+		}
+	});
+	
+	$('.menu-button').on({
+		'click': function() {
+			menu();
+		}
+	});
 
-            return function debounced () {
-                var obj = this, args = arguments;
-                function delayed () {
-                    if (!execAsap) {
-                        func.apply(obj, args);
-                    }
-                    timeout = null;
-                }
+	/* ==========================================================================
+	   Parallax cover
+	   ========================================================================== */
+	   
+	var cover = $('.cover');
+	var coverPosition = 0;
 
-                if (timeout) {
-                    clearTimeout(timeout);
-                } else if (execAsap) {
-                    func.apply(obj, args);
-                }
+	function prlx() {
+		if(cover.length >= 1) {
+			var windowPosition = viewport.scrollTop();
+			(windowPosition > 0) ? coverPosition = Math.floor(windowPosition * 0.25) : coverPosition = 0;
+			cover.css({
+				'transform' : 'translate(0, ' + coverPosition + 'px)'
+			});
+			(viewport.scrollTop() < cover.height()) ? body.addClass('cover-active') : body.removeClass('cover-active');
+		}
+	}
+	prlx();
 
-                timeout = setTimeout(delayed, threshold || 100);
-            };
-        };
+	viewport.on({
+		'scroll': function() {
+			prlx();
+		},
+		'resize': function() {
+			prlx();
+		},
+		'orientationchange': function() {
+			prlx();
+		}
+	});
 
-    $document.ready(function () {
+	/* ==========================================================================
+	   Reading Progress
+	   ========================================================================== */
 
-        var $postContent = $(".post-content");
-        $postContent.fitVids();
+	var post = $('.post-content');
+	
+	function readingProgress() {
+		if(post.length >= 1) {
+			var postBottom = post.offset().top + post.height();
+			var windowBottom = viewport.scrollTop() + viewport.height();
+			var progress = 100 - (((postBottom - windowBottom) / (postBottom - viewport.height())) * 100);
+			$('.progress-bar').css('width', progress + '%');
+			(progress > 100) ? $('.progress-container').addClass('ready') : $('.progress-container').removeClass('ready');
+		}
+	}
+	readingProgress();
 
-        function updateImageWidth() {
-            var $this = $(this),
-                contentWidth = $postContent.outerWidth(), // Width of the content
-                imageWidth = this.naturalWidth; // Original image resolution
+	viewport.on({
+		'scroll': function() {
+			readingProgress();
+		},
+		'resize': function() {
+			readingProgress();
+		},
+		'orientationchange': function() {
+			readingProgress();
+		}
+	});
 
-            if (imageWidth >= contentWidth) {
-                $this.addClass('full-img');
-            } else {
-                $this.removeClass('full-img');
-            }
-        }
+	/* ==========================================================================
+	   Style code blocks with highlight and numbered lines
+	   ========================================================================== */
 
-        var $img = $("img").on('load', updateImageWidth);
-        function casperFullImg() {
-            $img.each(updateImageWidth);
-        }
+	function codestyling() {
+		$('pre code').each(function(i, e) {
+			hljs.highlightBlock(e);
+			var code = $(this);
+			var lines = code.html().split(/\n/).length;
+			var numbers = [];
+			for (i = 1; i < lines; i++) {
+				numbers += '<span class="line">' + i + '</span>';
+			}
+			code.parent().append('<div class="lines">' + numbers + '</div>');
+		});
+	}
+	codestyling();
 
-        casperFullImg();
-        $(window).smartresize(casperFullImg);
+	/* ==========================================================================
+	   Responsive Videos with Fitvids
+	   ========================================================================== */
 
-        $(".scroll-down").arctic_scroll();
+	function video() {
+		$('#wrapper').fitVids();
+	}
+	video();
+	
+	/* ==========================================================================
+	   Initialize and load Disqus
+	   ========================================================================== */
 
-    });
-
-    // smartresize
-    jQuery.fn[sr] = function(fn) { return fn ? this.bind('resize', debounce(fn)) : this.trigger(sr); };
-
-    // Arctic Scroll by Paul Adam Davis
-    // https://github.com/PaulAdamDavis/Arctic-Scroll
-    $.fn.arctic_scroll = function (options) {
-
-        var defaults = {
-            elem: $(this),
-            speed: 500
-        },
-
-        allOptions = $.extend(defaults, options);
-
-        allOptions.elem.click(function (event) {
-            event.preventDefault();
-            var $this = $(this),
-                $htmlBody = $('html, body'),
-                offset = ($this.attr('data-offset')) ? $this.attr('data-offset') : false,
-                position = ($this.attr('data-position')) ? $this.attr('data-position') : false,
-                toMove;
-
-            if (offset) {
-                toMove = parseInt(offset);
-                $htmlBody.stop(true, false).animate({scrollTop: ($(this.hash).offset().top + toMove) }, allOptions.speed);
-            } else if (position) {
-                toMove = parseInt(position);
-                $htmlBody.stop(true, false).animate({scrollTop: toMove }, allOptions.speed);
-            } else {
-                $htmlBody.stop(true, false).animate({scrollTop: ($(this.hash).offset().top) }, allOptions.speed);
-            }
-        });
-
-    };
-})(jQuery, 'smartresize');
+	var disqusShortname = 'no-disqus'; //replace with your disqus shortname
+	
+	if (disqusShortname == 'no-disqus') {
+		$('.post-comments').css({
+			'display' : 'none'
+		});
+	} else {
+		$('#show-disqus').on('click', function() {
+			$.ajax({
+				type: "GET",
+				url: "http://" + disqusShortname + ".disqus.com/embed.js",
+				dataType: "script",
+				cache: true
+			});
+			$(this).parent().addClass('activated');
+		});
+	}
+});
